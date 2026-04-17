@@ -1,0 +1,270 @@
+// This is your NEW official production schema file
+// generated to bypass local file locks and ensure Render compatibility.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Business {
+  id            Int     @id @default(autoincrement())
+  name          String
+  type          String @default("tattoo") // tattoo | beauty | barber | etc.
+  modules       String @default("agenda,financeiro,clientes,profissionais,captação,anamnese,portfólio,estoque") // JSON or comma-separated
+  databaseUrl   String? // URL for the isolated business database
+  publicId      String? @unique // Secure public ID for links
+  isActive      Boolean @default(true)
+  address       String?
+  phone         String?
+  email         String?
+  hours         String? // JSON string
+  notifications String? // JSON string
+
+  // Integration Credentials (encrypted in prod)
+  mpAccessToken String?
+  waApiKey      String?
+  waInstanceId  String?
+  waInstanceUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      User[]
+  professionals Professional[]
+  clients    Client[]
+  bookings   Booking[]
+  leads      Lead[]
+  inventory  InventoryItem[]
+  portfolio  PortfolioItem[]
+  schedules  Schedule[]
+  services   Service[]
+}
+
+model User {
+  id         Int     @id @default(autoincrement())
+  businessId Int
+  name       String
+  role       String  @default("reception") // "admin" | "reception" | "professional"
+  email      String? @unique
+  phone      String?
+  password   String
+
+  professionalId Int?    @unique
+  professional   Professional? @relation("UserToProfessional", fields: [professionalId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, name])
+}
+
+model Professional {
+  id                   Int      @id @default(autoincrement())
+  businessId           Int
+  name                 String
+  specialty            String?
+  phone                String?
+  commission           Float    @default(60)
+  notificationSettings String?  // JSON string
+  mpAccessToken        String?  // Mercado Pago Access Token for split payment
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  business   Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  bookings   Booking[]
+  user       User?         @relation("UserToProfessional")
+  services   Service[]     @relation("ProfessionalServices")
+}
+
+model Service {
+  id          Int      @id @default(autoincrement())
+  businessId  Int
+  name        String
+  category    String?
+  duration    Int      @default(60) // minutes
+  price       Float    @default(0)
+  cost        Float    @default(0)
+  commission  Float?   // Override professional's default commission
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business      Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  professionals Professional[] @relation("ProfessionalServices")
+  bookings      Booking[]     @relation("BookingServices")
+}
+
+model Client {
+  id         Int      @id @default(autoincrement())
+  businessId Int
+  name       String
+  phone      String?
+  email      String?
+  birthdate  String?
+  notes      String?
+  bodymap    String? // JSON string for body map tags
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business   Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  bookings   Booking[]
+  anamnesis  Anamnesis[]
+  consents   Consent[]
+  documents  ClientDocument[]
+  leads      Lead[]
+}
+
+model Booking {
+  id          Int      @id @default(autoincrement())
+  businessId  Int
+  clientId    Int
+  professionalId Int
+  project     String?  // Keep for legacy compatibility (Legacy "Project" name)
+  description String?
+  totalValue  Float    @default(0)
+  deposit     Float    @default(0)
+  status      String   @default("pending") // pending | deposit_paid | completed | cancelled | quote | in_service
+  date        String?
+  time        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  payments Payment[]
+  services Service[] @relation("BookingServices")
+}
+
+model Payment {
+  id          Int      @id @default(autoincrement())
+  businessId  Int?
+  bookingId   Int?
+  professionalId Int?
+  type        String // income | expense
+  value       Float
+  method      String? // pix | credit | cash | debit
+  description String?
+  status      String   @default("pending") // pending | paid
+  category    String?  // Sinal | Serviço | Material | etc.
+  businessValue Float?   // Value for business after split
+  professionalValue Float?   // Value for professional after split
+  date        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+}
+
+model Schedule {
+  id         Int      @id @default(autoincrement())
+  businessId Int
+  clientId   Int?
+  professionalId Int?
+  title      String
+  date       String
+  time       String?
+  duration   Int?     @default(60) // minutes
+  notes      String?
+  status     String   @default("scheduled") // scheduled | confirmed | cancelled | completed
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Lead {
+  id         Int      @id @default(autoincrement())
+  businessId Int
+  clientId   Int?
+  name       String
+  phone      String?
+  email      String?
+  origin     String? // instagram | whatsapp | walk-in | referral
+  project    String?
+  status     String   @default("new") // new | contacted | scheduled | converted | lost
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  client   Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+}
+
+model InventoryItem {
+  id          Int      @id @default(autoincrement())
+  businessId  Int
+  name        String
+  category    String?
+  quantity    Float    @default(0)
+  unit        String?
+  minQuantity Float    @default(0)
+  supplier    String?
+  price       Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model PortfolioItem {
+  id           Int      @id @default(autoincrement())
+  businessId   Int
+  professionalId Int?
+  title        String?
+  professionalName String?
+  style        String?
+  region       String?
+  date         String?
+  imageUrl     String?
+  mediaType    String?  @default("image") // image | video
+  tags         String? // JSON string
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+}
+
+model Anamnesis {
+  id        Int      @id @default(autoincrement())
+  clientId  Int
+  data      String // JSON string for form answers
+  signature String? // base64 or URL
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model Consent {
+  id        Int       @id @default(autoincrement())
+  clientId  Int
+  type      String?
+  data      String? // JSON string
+  signature String? // base64 or URL
+  signedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model ClientDocument {
+  id        Int      @id @default(autoincrement())
+  clientId  Int
+  name      String
+  type      String? // pdf | image | etc.
+  url       String
+  size      Int?
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}

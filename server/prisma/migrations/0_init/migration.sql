@@ -1,0 +1,2 @@
+-- Baseline migration (exists in remote database, created as reference)
+-- Schema was initialized via db push before local migrations were set up

@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: app-tattoo
+    env: node
+    plan: free
+    buildCommand: "npm install && npm run build && npm run db:deploy --prefix server"
+    startCommand: "npm start --prefix server"
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true

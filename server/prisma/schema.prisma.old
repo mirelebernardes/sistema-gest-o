@@ -1,0 +1,240 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Studio {
+  id            Int     @id @default(autoincrement())
+  name          String
+  databaseUrl   String? // URL for the isolated studio database
+  publicId      String? @unique // Secure public ID for links
+  isActive      Boolean @default(true)
+  address       String?
+  phone         String?
+  email         String?
+  hours         String? // JSON string
+  notifications String? // JSON string
+
+  // Integration Credentials (encrypted in prod)
+  mpAccessToken String?
+  waApiKey      String?
+  waInstanceId  String?
+  waInstanceUrl String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  artists   Artist[]
+  clients   Client[]
+  sessions  TattooSession[]
+  leads     Lead[]
+  inventory InventoryItem[]
+  portfolio PortfolioItem[]
+  schedules Schedule[]
+}
+
+model User {
+  id       Int     @id @default(autoincrement())
+  studioId Int
+  name     String  @unique
+  role     String  @default("reception") // "admin" | "reception" | "artist"
+  email    String?
+  phone    String?
+  password String
+
+  artistId Int?    @unique
+  artist   Artist? @relation("UserToArtist", fields: [artistId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+}
+
+model Artist {
+  id                   Int      @id @default(autoincrement())
+  studioId             Int
+  name                 String
+  specialty            String?
+  phone                String?
+  commission           Float    @default(60)
+  notificationSettings String?  // JSON string
+  mpAccessToken        String?  // Mercado Pago Access Token for split payment
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  studio   Studio          @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  sessions TattooSession[]
+  user     User?           @relation("UserToArtist")
+}
+
+model Client {
+  id        Int      @id @default(autoincrement())
+  studioId  Int
+  name      String
+  phone     String?
+  email     String?
+  birthdate String?
+  notes     String?
+  bodymap   String? // JSON string for body map tags
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studio    Studio           @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  sessions  TattooSession[]
+  anamnesis Anamnesis[]
+  consents  Consent[]
+  documents ClientDocument[]
+  leads     Lead[]
+}
+
+model TattooSession {
+  id          Int      @id @default(autoincrement())
+  studioId    Int
+  clientId    Int
+  artistId    Int
+  project     String?
+  description String?
+  totalValue  Float    @default(0)
+  deposit     Float    @default(0)
+  status      String   @default("pending") // pending | deposit_paid | completed | cancelled | quote
+  date        String?
+  time        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  studio   Studio    @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  client   Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  artist   Artist    @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  payments Payment[]
+}
+
+model Payment {
+  id          Int      @id @default(autoincrement())
+  studioId    Int?
+  sessionId   Int?
+  artistId    Int?
+  type        String // income | expense
+  value       Float
+  method      String? // pix | credit | cash | debit
+  description String?
+  status      String   @default("pending") // pending | paid
+  category    String?  // Sinal | Serviço | Material | etc.
+  studioValue Float?   // Value for studio after split
+  artistValue Float?   // Value for artist after split
+  date        String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  session TattooSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+}
+
+model Schedule {
+  id        Int      @id @default(autoincrement())
+  studioId  Int
+  clientId  Int?
+  artistId  Int?
+  title     String
+  date      String
+  time      String?
+  duration  Int?     @default(60) // minutes
+  notes     String?
+  status    String   @default("scheduled") // scheduled | confirmed | cancelled | completed
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+}
+
+model Lead {
+  id        Int      @id @default(autoincrement())
+  studioId  Int
+  clientId  Int?
+  name      String
+  phone     String?
+  email     String?
+  origin    String? // instagram | whatsapp | walk-in | referral
+  project   String?
+  status    String   @default("new") // new | contacted | scheduled | converted | lost
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studio Studio  @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+}
+
+model InventoryItem {
+  id          Int      @id @default(autoincrement())
+  studioId    Int
+  name        String
+  category    String?
+  quantity    Float    @default(0)
+  unit        String?
+  minQuantity Float    @default(0)
+  supplier    String?
+  price       Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+}
+
+model PortfolioItem {
+  id        Int      @id @default(autoincrement())
+  studioId  Int
+  artistId  Int?
+  title     String?
+  style     String?
+  imageUrl  String?
+  mediaType String?  @default("image") // image | video
+  tags      String? // JSON string
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+}
+
+model Anamnesis {
+  id        Int      @id @default(autoincrement())
+  clientId  Int
+  data      String // JSON string for form answers
+  signature String? // base64 or URL
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model Consent {
+  id        Int       @id @default(autoincrement())
+  clientId  Int
+  type      String?
+  data      String? // JSON string
+  signature String? // base64 or URL
+  signedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
+
+model ClientDocument {
+  id        Int      @id @default(autoincrement())
+  clientId  Int
+  name      String
+  type      String? // pdf | image | etc.
+  url       String
+  size      Int?
+  createdAt DateTime @default(now())
+
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}
