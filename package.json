@@ -1,0 +1,35 @@
+{
+  "name": "app-tattoo",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "start": "concurrently --names \"API,APP\" --prefix-colors \"magenta,cyan\" \"npm run dev --prefix server\" \"vite --host\"",
+    "build": "vite build",
+    "start:prod": "npm run build && npm run start --prefix server",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "postinstall": "npm install --prefix server"
+  },
+  "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
+    "axios": "^1.13.6",
+    "lucide-react": "^1.6.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.13.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "vite": "^8.0.1"
+  }
+}

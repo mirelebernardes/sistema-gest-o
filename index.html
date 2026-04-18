@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="pt-BR" class="notranslate" translate="no">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google" content="notranslate" />
+    <title>app-tattoo</title>
+    <script>
+      (function () {
+        try {
+          var savedTheme = window.localStorage.getItem('app_theme_mode');
+          var systemTheme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          var theme = savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : systemTheme;
+          document.documentElement.dataset.themeMode = theme;
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+        } catch (error) {
+          document.documentElement.dataset.themeMode = 'light';
+          document.documentElement.dataset.theme = 'light';
+          document.documentElement.style.colorScheme = 'light';
+        }
+      })();
+    </script>
+  </head>
+  <body class="notranslate" translate="no">
+    <div id="root" class="notranslate" translate="no"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
